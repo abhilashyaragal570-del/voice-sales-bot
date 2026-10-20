@@ -174,19 +174,27 @@ async function api(url, opts) {
 }
 const post = (u, b) => api(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
 
+const FEMALE = /zira|heera|neerja|swara|shruti|aria|jenny|samantha|veena|lekha|susan|hazel|libby|sonia|natasha|emma|michelle|ana|female/i;
+function pickVoice(lang) {
+  const vs = speechSynthesis.getVoices();
+  const norm = v => v.lang.replace("_", "-").toLowerCase();
+  const base = lang.slice(0, 2).toLowerCase();
+  let f = vs.find(v => norm(v).startsWith(base) && FEMALE.test(v.name));
+  if (!f && base === "en") f = vs.find(v => norm(v).startsWith("en") && FEMALE.test(v.name));
+  return f || null;
+}
 function speak(text) {
   return new Promise(res => {
     const u = new SpeechSynthesisUtterance(text);
     const lang = $("lang").value;
     u.lang = lang;
-    const v = speechSynthesis.getVoices().find(v => v.lang.replace("_", "-").startsWith(lang.slice(0, 2)));
-    if (v) u.voice = v;
+    const v = pickVoice(lang);
+    if (v) { u.voice = v; u.pitch = 1.1; }
+    else { u.pitch = 1.6; }
     u.onend = u.onerror = () => res();
     speechSynthesis.speak(u);
   });
-}
-
-async function startCall() {
+}async function startCall() {
   if (!SR) { alert("Please use Chrome or Edge: speech recognition is not supported in this browser."); return; }
   if (!$("consent").checked) { alert("Please tick the recording consent box first."); return; }
   try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
