@@ -86,7 +86,7 @@ Speech recognition and Riya's voice run in the customer's browser. The server ha
 | Layer | Technology |
 | --- | --- |
 | Backend | Python, FastAPI |
-| AI model | <YOUR LLM PROVIDER AND MODEL> |
+| AI model | Any OpenAI-compatible chat completions API, set through environment variables |
 | Frontend | HTML, CSS, JavaScript (single page) |
 | Speech | Browser Web Speech API for recognition and synthesis |
 | Recording | Browser MediaRecorder API |
@@ -121,7 +121,9 @@ cd voice-sales-bot
 python -m venv .venv
 .venv\Scripts\activate
 pip install -r requirements.txt
-$env:<YOUR_API_KEY_NAME> = "your_key_here"
+$env:LLM_BASE_URL = "https://your-provider-url/v1"
+$env:LLM_API_KEY = "your_key_here"
+$env:LLM_MODEL = "your_model_name"
 uvicorn app:app --reload
 ```
 
@@ -131,7 +133,10 @@ Open http://127.0.0.1:8000 and allow microphone access when asked.
 
 | Variable | Purpose |
 | --- | --- |
-| `<YOUR_API_KEY_NAME>` | API key for the AI provider |
+| `LLM_BASE_URL` | Base URL of an OpenAI-compatible chat completions API |
+| `LLM_API_KEY` | API key for the provider |
+| `LLM_MODEL` | Model name to use |
+| `LLM_REASONING` | Optional reasoning effort setting |
 
 Never commit keys to the repository. Set them as environment variables locally and in the Render dashboard.
 
