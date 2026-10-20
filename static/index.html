@@ -1,13 +1,259 @@
 ﻿<!doctype html>
-<html>
-<head><meta charset="utf-8"><title>AI Voice Sales Bot</title></head>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Voice Sales Bot</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f4f5f7;color:#1c1e21}
+header{background:#1f2937;color:#fff;padding:14px 20px;font-size:18px}
+main{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;padding:16px;max-width:1100px;margin:auto}
+@media(max-width:800px){main{grid-template-columns:1fr}}
+.card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+h2{margin:0 0 10px;font-size:17px}
+button{padding:10px 18px;border:0;border-radius:8px;font-size:15px;cursor:pointer}
+button:disabled{opacity:.4;cursor:not-allowed}
+#start{background:#16a34a;color:#fff}
+#end{background:#dc2626;color:#fff}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+#chat{height:320px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin:12px 0 4px;background:#fafafa;display:flex;flex-direction:column}
+.m{margin:5px 0;padding:8px 12px;border-radius:10px;max-width:85%}
+.bot{background:#e0e7ff;align-self:flex-start}
+.you{background:#dcfce7;align-self:flex-end}
+#interim{color:#6b7280;font-style:italic;min-height:20px}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-weight:600;font-size:13px;background:#e5e7eb}
+.Converted{background:#bbf7d0}.Interested{background:#bfdbfe}.Demo{background:#e9d5ff}
+.Follow{background:#fde68a}.Not{background:#fecaca}.No{background:#e5e7eb}
+details{border-bottom:1px solid #e5e7eb;padding:8px 0}
+summary{cursor:pointer}
+.d p{margin:6px 0}
+audio{width:100%;margin:6px 0}
+</style>
+</head>
 <body>
-<h1>AI Voice Sales Bot</h1>
-<p id="msg">Loading...</p>
+<header>AI Voice Sales Bot (demo product: FlowDesk)</header>
+<main>
+<section class="card">
+  <h2>Live call</h2>
+  <div class="row">
+    <label>Language
+      <select id="lang">
+        <option value="en-IN">English</option>
+        <option value="hi-IN">Hindi</option>
+        <option value="te-IN">Telugu</option>
+      </select>
+    </label>
+    <label><input type="checkbox" id="consent"> I consent to this call being recorded.</label>
+  </div>
+  <div class="row">
+    <button id="start">Start Call</button>
+    <button id="end" disabled>End Call</button>
+    <span>Status: <b id="status">Idle</b></span>
+    <span>Duration: <b id="dur">00:00</b></span>
+  </div>
+  <div id="chat"></div>
+  <div id="interim"></div>
+  <div id="result" class="d" hidden></div>
+</section>
+<section class="card">
+  <h2>Call history</h2>
+  <div id="history">Loading...</div>
+</section>
+</main>
 <script>
-fetch("/api/health").then(r => r.json()).then(d => {
-  document.getElementById("msg").textContent = "Server status: " + d.status;
-});
+const $ = id => document.getElementById(id);
+const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let active = false, busy = false, messages = [], callId = null, rec = null;
+let mediaRec = null, chunks = [], stream = null, timer = null, t0 = 0;
+
+function setStatus(s) { $("status").textContent = s; }
+function add(role, text) {
+  const d = document.createElement("div");
+  d.className = "m " + (role === "assistant" ? "bot" : "you");
+  d.textContent = (role === "assistant" ? "Riya: " : "You: ") + text;
+  $("chat").appendChild(d);
+  $("chat").scrollTop = 1e9;
+}
+function tick() {
+  const s = Math.floor((Date.now() - t0) / 1000);
+  $("dur").textContent = String(Math.floor(s / 60)).padStart(2, "0") + ":" + String(s % 60).padStart(2, "0");
+}
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  if (!r.ok) throw new Error((await r.text()).slice(0, 200));
+  return r.json();
+}
+const post = (u, b) => api(u, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) });
+
+function speak(text) {
+  return new Promise(res => {
+    const u = new SpeechSynthesisUtterance(text);
+    const lang = $("lang").value;
+    u.lang = lang;
+    const v = speechSynthesis.getVoices().find(v => v.lang.replace("_", "-").startsWith(lang.slice(0, 2)));
+    if (v) u.voice = v;
+    u.onend = u.onerror = () => res();
+    speechSynthesis.speak(u);
+  });
+}
+
+async function startCall() {
+  if (!SR) { alert("Please use Chrome or Edge: speech recognition is not supported in this browser."); return; }
+  if (!$("consent").checked) { alert("Please tick the recording consent box first."); return; }
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch (e) { alert("Microphone permission is needed for the call."); return; }
+  $("start").disabled = true; $("lang").disabled = true; $("consent").disabled = true;
+  $("chat").innerHTML = ""; $("result").hidden = true; messages = [];
+  setStatus("Connecting...");
+  try { callId = (await post("/api/calls", { consent: true })).id; }
+  catch (e) { setStatus("Error: " + e.message); resetButtons(); return; }
+  chunks = [];
+  mediaRec = new MediaRecorder(stream);
+  mediaRec.ondataavailable = e => { if (e.data.size) chunks.push(e.data); };
+  mediaRec.start();
+  active = true; t0 = Date.now();
+  timer = setInterval(tick, 1000); tick();
+  $("end").disabled = false;
+  await botTurn();
+}
+
+async function botTurn() {
+  busy = true; setStatus("Bot is thinking...");
+  try {
+    const r = await post("/api/chat", { messages });
+    if (!active) return;
+    messages.push({ role: "assistant", content: r.reply });
+    add("assistant", r.reply);
+    setStatus("Bot is speaking...");
+    await speak(r.reply);
+  } catch (e) { add("assistant", "(error: " + e.message + ")"); }
+  busy = false;
+  if (active) { setStatus("Listening..."); listen(); }
+}
+
+function listen() {
+  if (!active || busy) return;
+  rec = new SR();
+  rec.lang = $("lang").value;
+  rec.interimResults = true;
+  rec.continuous = false;
+  let final = "";
+  rec.onresult = e => {
+    let interim = "";
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const t = e.results[i][0].transcript;
+      if (e.results[i].isFinal) final += t; else interim += t;
+    }
+    $("interim").textContent = interim;
+  };
+  rec.onend = () => {
+    $("interim").textContent = "";
+    const text = final.trim();
+    if (text && active) { messages.push({ role: "user", content: text }); add("user", text); botTurn(); }
+    else if (active && !busy) setTimeout(listen, 200);
+  };
+  rec.onerror = e => {
+    if (e.error === "not-allowed" || e.error === "service-not-allowed") {
+      alert("Speech recognition is blocked. Allow the microphone and try again.");
+      endCall();
+    }
+  };
+  try { rec.start(); } catch (e) {}
+}
+
+async function endCall() {
+  if (!active) return;
+  active = false; $("end").disabled = true; setStatus("Ending call...");
+  clearInterval(timer);
+  try { rec && rec.abort(); } catch (e) {}
+  speechSynthesis.cancel();
+  const dur = Math.floor((Date.now() - t0) / 1000);
+  const stopped = new Promise(r => { mediaRec.onstop = r; });
+  mediaRec.stop(); await stopped;
+  stream.getTracks().forEach(t => t.stop());
+  try {
+    setStatus("Generating summary...");
+    const res = await post("/api/calls/" + callId + "/end", { transcript: messages, duration: dur });
+    const blob = new Blob(chunks, { type: mediaRec.mimeType || "audio/webm" });
+    const fd = new FormData(); fd.append("file", blob, "call.webm");
+    await api("/api/calls/" + callId + "/recording", { method: "POST", body: fd });
+    showResult(res);
+    setStatus("Call ended");
+  } catch (e) { setStatus("Error saving call: " + e.message); }
+  busy = false; resetButtons(); loadHistory();
+}
+
+function resetButtons() {
+  $("start").disabled = false; $("lang").disabled = false; $("consent").disabled = false; $("end").disabled = true;
+}
+
+function line(label, text) {
+  const p = document.createElement("p");
+  const b = document.createElement("b"); b.textContent = label + ": ";
+  p.appendChild(b); p.appendChild(document.createTextNode(text || "-"));
+  return p;
+}
+function badge(status) {
+  const s = document.createElement("span");
+  s.className = "badge " + (status || "").split(/[ -]/)[0];
+  s.textContent = status || "In progress";
+  return s;
+}
+function showResult(r) {
+  const box = $("result"); box.innerHTML = ""; box.hidden = false;
+  const h = document.createElement("h2"); h.textContent = "AI summary  ";
+  h.appendChild(badge(r.status)); box.appendChild(h);
+  box.appendChild(line("Summary", r.summary));
+  box.appendChild(line("Requirements", r.requirements));
+  box.appendChild(line("Objections", r.objections));
+  box.appendChild(line("Next steps", r.next_steps));
+}
+function renderDetail(c) {
+  const d = document.createElement("div"); d.className = "d";
+  d.appendChild(line("Summary", c.summary));
+  d.appendChild(line("Requirements", c.requirements));
+  d.appendChild(line("Objections", c.objections));
+  d.appendChild(line("Next steps", c.next_steps));
+  d.appendChild(line("Recording consent", c.consent ? "Given" : "Not given"));
+  if (c.recording) {
+    const a = document.createElement("audio"); a.controls = true; a.src = "/api/calls/" + c.id + "/recording";
+    d.appendChild(a);
+  }
+  const t = document.createElement("div");
+  for (const m of c.transcript) {
+    const p = document.createElement("p");
+    p.textContent = (m.role === "assistant" ? "Riya: " : "Customer: ") + m.content;
+    t.appendChild(p);
+  }
+  d.appendChild(t);
+  return d;
+}
+async function loadHistory() {
+  const box = $("history");
+  try {
+    const list = await api("/api/calls");
+    box.innerHTML = "";
+    if (!list.length) { box.textContent = "No calls yet."; return; }
+    for (const c of list) {
+      const det = document.createElement("details");
+      const s = document.createElement("summary");
+      s.textContent = c.started_at + " | " + (c.duration || 0) + "s | ";
+      s.appendChild(badge(c.status));
+      det.appendChild(s);
+      det.addEventListener("toggle", async () => {
+        if (det.open && !det.dataset.loaded) {
+          det.dataset.loaded = "1";
+          det.appendChild(renderDetail(await api("/api/calls/" + c.id)));
+        }
+      });
+      box.appendChild(det);
+    }
+  } catch (e) { box.textContent = "Could not load history: " + e.message; }
+}
+
+$("start").onclick = startCall;
+$("end").onclick = endCall;
+loadHistory();
 </script>
 </body>
 </html>

@@ -25,6 +25,7 @@ Rules:
 - Ask one question at a time to learn their team size, current tool and pain points.
 - Answer objections politely. Never invent features, prices or discounts beyond those above; if unsure, offer a demo or follow-up.
 - Aim to get a clear next step: sign up for the trial, book a demo, or a follow-up call.
+- Never summarize the call yourself. If asked for a summary, say it will appear on screen after the call ends and continue the conversation.
 - If the customer wants to end the call, thank them and say goodbye."""
 
 app = FastAPI()
@@ -100,7 +101,7 @@ async def end_call(cid: str, body: EndIn):
                   "status (exactly one of: " + ", ".join(STATUSES) + "). "
                   "Use Converted only if the customer clearly agreed to buy or sign up. "
                   "Use Demo Requested if they asked for a demo. Write in English.\n\nTranscript:\n" + text)
-        raw = await llm([{"role": "user", "content": prompt}], max_tokens=500)
+        raw = await llm([{"role": "user", "content": prompt}], max_tokens=1500)
         try:
             data = json.loads(raw[raw.index("{"): raw.rindex("}") + 1])
             for k in ["summary", "requirements", "objections", "next_steps"]:
