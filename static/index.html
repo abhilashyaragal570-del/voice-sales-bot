@@ -1,0 +1,13 @@
+﻿<!doctype html>
+<html>
+<head><meta charset="utf-8"><title>AI Voice Sales Bot</title></head>
+<body>
+<h1>AI Voice Sales Bot</h1>
+<p id="msg">Loading...</p>
+<script>
+fetch("/api/health").then(r => r.json()).then(d => {
+  document.getElementById("msg").textContent = "Server status: " + d.status;
+});
+</script>
+</body>
+</html>
