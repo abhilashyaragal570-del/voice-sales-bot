@@ -4,7 +4,7 @@ Built for the **Sankar Group Intern Assignment: Build an AI Voice Sales Bot**.
 
 Riya is an AI sales agent that holds a real voice conversation with a customer in the browser. She speaks, listens, answers questions, explains the SaaS product, and tries to convert the customer. After the call she saves the recording, writes an AI summary and assigns a sales status.
 
-**Live demo:** <PASTE YOUR RENDER URL>
+**Live demo:** https://voice-sales-bot.onrender.com
 **Repository:** https://github.com/abhilashyaragal570-del/voice-sales-bot
 
 > The free Render tier sleeps when idle. The first load can take up to a minute, so please wait for the page to appear.
