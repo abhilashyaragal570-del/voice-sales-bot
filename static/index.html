@@ -5,36 +5,116 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Voice Sales Bot</title>
 <style>
-body{font-family:system-ui,sans-serif;margin:0;background:#f4f5f7;color:#1c1e21}
-header{background:#1f2937;color:#fff;padding:14px 20px;font-size:18px}
-main{display:grid;grid-template-columns:1.3fr 1fr;gap:16px;padding:16px;max-width:1100px;margin:auto}
-@media(max-width:800px){main{grid-template-columns:1fr}}
-.card{background:#fff;border-radius:10px;padding:16px;box-shadow:0 1px 3px rgba(0,0,0,.12)}
-h2{margin:0 0 10px;font-size:17px}
-button{padding:10px 18px;border:0;border-radius:8px;font-size:15px;cursor:pointer}
-button:disabled{opacity:.4;cursor:not-allowed}
-#start{background:#16a34a;color:#fff}
-#end{background:#dc2626;color:#fff}
-.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
-#chat{height:320px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:8px;padding:10px;margin:12px 0 4px;background:#fafafa;display:flex;flex-direction:column}
-.m{margin:5px 0;padding:8px 12px;border-radius:10px;max-width:85%}
-.bot{background:#e0e7ff;align-self:flex-start}
-.you{background:#dcfce7;align-self:flex-end}
-#interim{color:#6b7280;font-style:italic;min-height:20px}
-.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-weight:600;font-size:13px;background:#e5e7eb}
-.Converted{background:#bbf7d0}.Interested{background:#bfdbfe}.Demo{background:#e9d5ff}
-.Follow{background:#fde68a}.Not{background:#fecaca}.No{background:#e5e7eb}
-details{border-bottom:1px solid #e5e7eb;padding:8px 0}
-summary{cursor:pointer}
-.d p{margin:6px 0}
-audio{width:100%;margin:6px 0}
-</style>
+:root{--bg:#0b1020;--card:#131a30;--line:#25304f;--text:#e8ecf8;--muted:#94a0c0;--accent:#6366f1;--green:#22c55e;--red:#ef4444}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,sans-serif;color:var(--text);min-height:100vh;
+background:radial-gradient(1200px 600px at 10% -10%,#1e2a5a 0%,transparent 60%),radial-gradient(900px 500px at 100% 0%,#3b1d5e 0%,transparent 55%),var(--bg)}
+header{display:flex;align-items:center;gap:12px;padding:18px 24px;border-bottom:1px solid var(--line);backdrop-filter:blur(6px)}
+.logo{width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#6366f1,#a855f7);display:grid;place-items:center;font-weight:700}
+header h1{font-size:18px;margin:0}
+header small{color:var(--muted);display:block;font-size:12px}
+main{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;padding:20px;max-width:1180px;margin:auto}
+@media(max-width:860px){main{grid-template-columns:1fr}}
+.card{background:rgba(19,26,48,.85);border:1px solid var(--line);border-radius:16px;padding:20px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+h2{margin:0 0 14px;font-size:16px;color:#c7d0ee;font-weight:600}
+.top{display:flex;align-items:center;gap:18px;margin-bottom:14px;flex-wrap:wrap}
+#orb{width:84px;height:84px;border-radius:50%;background:radial-gradient(circle at 30% 30%,#a5b4fc,#6366f1 55%,#4338ca);display:grid;place-items:center;font-size:30px;flex:none;transition:.3s}
+#orb.idle{filter:grayscale(.6) brightness(.8)}
+#orb.listening{animation:ring 1.6s infinite;background:radial-gradient(circle at 30% 30%,#86efac,#22c55e 55%,#15803d)}
+#orb.speaking{animation:pulse .9s infinite alternate}
+#orb.thinking{animation:spin 1.2s linear infinite;background:radial-gradient(circle at 30% 30%,#fde68a,#f59e0b 55%,#b45309)}
+@keyframes ring{0%{box-shadow:0 0 0 0 rgba(34,197,94,.6)}100%{box-shadow:0 0 0 28px rgba(34,197,94,0)}}
+@keyframes pulse{from{transform:scale(1);box-shadow:0 0 18px rgba(99,102,241,.5)}to{transform:scale(1.1);box-shadow:0 0 40px rgba(99,102,241,.9)}}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.who b{display:block;font-size:17px}
+.pill{display:inline-block;margin-top:4px;padding:3px 12px;border-radius:999px;background:#1f2a4d;color:#c7d0ee;font-size:13px}
+.timer{margin-left:auto;font-size:30px;font-variant-numeric:tabular-nums;font-weight:600}
+.row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+select{background:#0f1630;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+label{color:var(--muted);font-size:14px}
+button{padding:11px 22px;border:0;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;transition:.15s}
+button:hover:not(:disabled){transform:translateY(-1px)}
+button:disabled{opacity:.35;cursor:not-allowed}
+#start{background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff}
+#end{background:linear-gradient(135deg,#ef4444,#b91c1c);color:#fff}
+#chat{height:340px;overflow-y:auto;border:1px solid var(--line);border-radius:12px;padding:12px;background:#0d1328;display:flex;flex-direction:column;gap:8px}
+.m{padding:9px 14px;border-radius:14px;max-width:82%;line-height:1.4;font-size:15px}
+.m small{display:block;font-size:11px;opacity:.65;margin-bottom:2px}
+.bot{background:#232d63;align-self:flex-start;border-bottom-left-radius:4px}
+.you{background:#14532d;align-self:flex-end;border-bottom-right-radius:4px}
+#interim{color:var(--muted);font-style:italic;min-height:22px;margin-top:6px;font-size:14px}
+.badge{display:inline-block;padding:3px 12px;border-radius:999px;font-weight:600;font-size:12px;background:#334155;color:#e2e8f0}
+.Converted{background:#14532d;color:#86efac}.Interested{background:#1e3a8a;color:#93c5fd}
+.Demo{background:#581c87;color:#d8b4fe}.Follow{background:#78350f;color:#fcd34d}
+.Not{background:#7f1d1d;color:#fca5a5}.No{background:#334155;color:#cbd5e1}
+#result{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:12px;background:#0d1328}
+#history{max-height:640px;overflow-y:auto}
+details{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:10px;background:#0d1328}
+summary{cursor:pointer;font-size:14px;color:#c7d0ee}
+.d p{margin:8px 0;font-size:14px;line-height:1.45}
+.d b{color:#a5b4fc}
+audio{width:100%;margin:8px 0}
+.empty{color:var(--muted)}
+#orb,#orb.idle,#orb.listening,#orb.speaking,#orb.thinking{background:none;animation:none;filter:none;border-radius:0;width:130px;height:130px;display:block;font-size:0}
+#orb svg{display:block}
+#orb.listening{filter:drop-shadow(0 0 14px rgba(34,197,94,.7))}
+#orb.speaking{filter:drop-shadow(0 0 14px rgba(99,102,241,.9))}
+#orb.thinking{filter:drop-shadow(0 0 14px rgba(245,158,11,.7))}
+#orb .waves,#orb .dots{opacity:0}
+#orb.listening .waves{opacity:1}
+#orb.thinking .dots{opacity:1}
+#orb .waves path{stroke:#86efac;fill:none;stroke-width:3;stroke-linecap:round;animation:wave 1.4s infinite}
+#orb .waves path:nth-child(even){animation-delay:.35s}
+#orb .dots circle{fill:#fbbf24;animation:bounce .9s infinite}
+#orb .dots circle:nth-child(2){animation-delay:.15s}
+#orb .dots circle:nth-child(3){animation-delay:.3s}
+#orb .head{transform-box:fill-box;transform-origin:50% 100%;animation:breathe 4s ease-in-out infinite}
+#orb.listening .head{animation:tilt 3s ease-in-out infinite}
+#orb.thinking .head{animation:sway 1.6s ease-in-out infinite}
+#orb .eyes{transform-box:fill-box;transform-origin:center;animation:blink 4s infinite}
+#orb .mouth{transform-box:fill-box;transform-origin:center}
+#orb.speaking .mouth{animation:talk .3s ease-in-out infinite alternate}
+#orb.listening .mouth{transform:scaleX(.8)}
+@keyframes wave{0%,100%{opacity:.2}50%{opacity:1}}
+@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes breathe{0%,100%{transform:translateY(0)}50%{transform:translateY(-1.5px)}}
+@keyframes tilt{0%,100%{transform:rotate(-5deg)}50%{transform:rotate(3deg) translateY(1px)}}
+@keyframes sway{0%,100%{transform:rotate(-4deg)}50%{transform:rotate(4deg)}}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
+@keyframes talk{from{transform:scaleY(1)}to{transform:scaleY(4)}}</style>
 </head>
 <body>
-<header>AI Voice Sales Bot (demo product: FlowDesk)</header>
+<header>
+  <div class="logo">F</div>
+  <div><h1>AI Voice Sales Bot</h1><small>Demo product: FlowDesk (fictional helpdesk SaaS). Use Chrome or Edge.</small></div>
+</header>
 <main>
 <section class="card">
   <h2>Live call</h2>
+  <div class="top">
+    <div id="orb" class="idle"><svg viewBox="0 0 120 120" width="130" height="130">
+<path d="M15 120 Q15 92 60 90 Q105 92 105 120Z" fill="#6366f1"/>
+<g class="waves"><path d="M20 50 Q14 58 20 66"/><path d="M11 44 Q1 58 11 72"/><path d="M100 50 Q106 58 100 66"/><path d="M109 44 Q119 58 109 72"/></g>
+<g class="dots"><circle cx="48" cy="9" r="3"/><circle cx="60" cy="9" r="3"/><circle cx="72" cy="9" r="3"/></g>
+<g class="head">
+<rect x="52" y="78" width="16" height="14" fill="#e0a98a"/>
+<ellipse cx="60" cy="50" rx="31" ry="34" fill="#2b1d3a"/>
+<ellipse cx="60" cy="54" rx="26" ry="29" fill="#f1c0a0"/>
+<path d="M34 48 Q38 24 60 24 Q82 24 86 48 Q70 36 34 48Z" fill="#2b1d3a"/>
+<circle cx="34" cy="56" r="5" fill="#e8b090"/><circle cx="86" cy="56" r="5" fill="#e8b090"/>
+<g class="eyes"><ellipse cx="49" cy="54" rx="3.2" ry="4" fill="#1f2937"/><ellipse cx="71" cy="54" rx="3.2" ry="4" fill="#1f2937"/></g>
+<path d="M43 46 Q49 43 55 46" stroke="#2b1d3a" fill="none" stroke-width="2" stroke-linecap="round"/>
+<path d="M65 46 Q71 43 77 46" stroke="#2b1d3a" fill="none" stroke-width="2" stroke-linecap="round"/>
+<circle cx="42" cy="63" r="4" fill="#f472b6" opacity=".3"/><circle cx="78" cy="63" r="4" fill="#f472b6" opacity=".3"/>
+<ellipse class="mouth" cx="60" cy="70" rx="7" ry="2" fill="#9f3b4a"/>
+<path d="M32 56 Q32 22 60 22 Q88 22 88 56" fill="none" stroke="#a5b4fc" stroke-width="4"/>
+<rect x="28" y="52" width="8" height="16" rx="4" fill="#a5b4fc"/>
+<path d="M32 68 Q36 80 52 76" stroke="#a5b4fc" stroke-width="2.5" fill="none"/>
+<circle cx="53" cy="76" r="3" fill="#a5b4fc"/>
+</g></svg></div>
+    <div class="who"><b>Riya, FlowDesk sales</b><span class="pill">Status: <span id="status">Idle</span></span></div>
+    <div class="timer" id="dur">00:00</div>
+  </div>
   <div class="row">
     <label>Language
       <select id="lang">
@@ -48,8 +128,6 @@ audio{width:100%;margin:6px 0}
   <div class="row">
     <button id="start">Start Call</button>
     <button id="end" disabled>End Call</button>
-    <span>Status: <b id="status">Idle</b></span>
-    <span>Duration: <b id="dur">00:00</b></span>
   </div>
   <div id="chat"></div>
   <div id="interim"></div>
@@ -66,11 +144,22 @@ const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let active = false, busy = false, messages = [], callId = null, rec = null;
 let mediaRec = null, chunks = [], stream = null, timer = null, t0 = 0;
 
-function setStatus(s) { $("status").textContent = s; }
+function setStatus(s) {
+  $("status").textContent = s;
+  const l = s.toLowerCase();
+  let st = "idle";
+  if (l.includes("speaking")) st = "speaking";
+  else if (l.includes("listening")) st = "listening";
+  else if (l.includes("thinking") || l.includes("connecting") || l.includes("generating") || l.includes("ending")) st = "thinking";
+  $("orb").className = st;
+}
 function add(role, text) {
   const d = document.createElement("div");
   d.className = "m " + (role === "assistant" ? "bot" : "you");
-  d.textContent = (role === "assistant" ? "Riya: " : "You: ") + text;
+  const s = document.createElement("small");
+  s.textContent = role === "assistant" ? "Riya" : "You";
+  d.appendChild(s);
+  d.appendChild(document.createTextNode(text));
   $("chat").appendChild(d);
   $("chat").scrollTop = 1e9;
 }
@@ -233,7 +322,8 @@ async function loadHistory() {
   try {
     const list = await api("/api/calls");
     box.innerHTML = "";
-    if (!list.length) { box.textContent = "No calls yet."; return; }
+    if (!list.length) { box.textContent = "No calls yet."; box.className = "empty"; return; }
+    box.className = "";
     for (const c of list) {
       const det = document.createElement("details");
       const s = document.createElement("summary");
