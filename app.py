@@ -59,12 +59,20 @@ async def llm(messages, max_tokens=300):
     if not (BASE_URL and API_KEY and MODEL):
         raise HTTPException(500, "LLM is not configured in .env")
     body = {"model": MODEL, "messages": messages, "temperature": 0.6, "max_tokens": max_tokens}
-    async with httpx.AsyncClient(timeout=40) as c:
-        r = await c.post(BASE_URL + "/chat/completions", headers={"Authorization": "Bearer " + API_KEY}, json=body)
-    if r.status_code != 200:
-        raise HTTPException(502, f"LLM error {r.status_code}: {r.text[:300]}")
-    return r.json()["choices"][0]["message"]["content"].strip()
-
+    effort = os.getenv("LLM_REASONING", "")
+    if effort:
+        body["reasoning_effort"] = effort
+    last = ""
+    for attempt in range(3):
+        async with httpx.AsyncClient(timeout=40) as c:
+            r = await c.post(BASE_URL + "/chat/completions", headers={"Authorization": "Bearer " + API_KEY}, json=body)
+        if r.status_code == 200:
+            return (r.json()["choices"][0]["message"].get("content") or "").strip()
+        last = f"LLM error {r.status_code}: {r.text[:300]}"
+        if r.status_code == 400 and "tool" in r.text.lower() and attempt < 2:
+            continue
+        break
+    raise HTTPException(502, last)
 @app.get("/api/health")
 def health():
     return {"status": "ok", "llm_configured": bool(BASE_URL and API_KEY and MODEL)}
